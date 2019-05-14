@@ -273,5 +273,18 @@
 				</configuration>
 			</plugin>
 		</plugins>
+
+		<!-- Start -->
+
+		<!-- Adding resource for Tenant Preference Default Details for Camino Instance -->
+		<resources>
+    			<resource>
+      				<directory>src/main/resources</directory>
+      				<filtering>true</filtering>
+    			</resource>
+  		</resources>
+
+		<!-- Stop -->
+
 	</build>
 </project>
