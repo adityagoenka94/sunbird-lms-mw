@@ -82,6 +82,7 @@ public class MultiTenantManagementActor extends BaseActor {
     // To create Tenant Info
     private void createTenantInfo(Request actorMessage) {
 
+        ProjectLogger.log("Create Tenant Info Api Called");
         Map<String, Object> request = actorMessage.getRequest();
         String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
         String tenantInfoId = ProjectUtil.getUniqueIdFromTimestamp(actorMessage.getEnv());
@@ -112,6 +113,9 @@ public class MultiTenantManagementActor extends BaseActor {
         multiTenant.setOrgId((String)orgData.get(JsonKey.ID));
         Response response = multiTenantDao.createTenantInfo(multiTenant);
         response.put(CaminoJsonKey.TENANT_INFO_ID, tenantInfoId);
+        ProjectLogger.log(
+                "MultiTenantManagementActor:createTenant():  Tenant info created successfully "+response,
+                LoggerEnum.INFO.name());
         request.put(JsonKey.ORG_ID,orgData.get(JsonKey.ID));
         request.put(JsonKey.CREATED_BY,requestedBy);
         actorMessage.setRequest(request);
@@ -123,6 +127,7 @@ public class MultiTenantManagementActor extends BaseActor {
     // To create Tenant Preference Details
     private Response createTenantPreferenceDetails(Request actorMessage) {
 
+        ProjectLogger.log("Create Tenant Preference Api called");
         Map<String, Object> request = actorMessage.getRequest();
         String jsonString;
         Response result=null;
@@ -132,6 +137,9 @@ public class MultiTenantManagementActor extends BaseActor {
         // Case if TenantPreferenceDetails is Empty, then apply default settings
         if (StringUtils.isBlank(request.get(CaminoJsonKey.TENANT_PREFERENCE_DETAILS).toString())) {
             try {
+                ProjectLogger.log(
+                        "MultiTenantManagementActor:createTenantPreferenceDetails():  Applying default tenant preference settings.",
+                        LoggerEnum.INFO.name());
                 InputStream file = this.getClass().getResourceAsStream( "/data/defaultTenantPreferenceData.json" );
                 byte[] data = new byte[file.available()];
                 file.read(data);
@@ -141,6 +149,9 @@ public class MultiTenantManagementActor extends BaseActor {
                 tenantPreferenceData=mapper.convertValue(actualObj,Map.class);
                 file.close();
             } catch (IOException e) {
+                ProjectLogger.log(
+                        "MultiTenantManagementActor:createTenantPreferenceDetails():  Error while applying default tenant preference settings.",
+                        LoggerEnum.ERROR.name());
                 e.printStackTrace();
                 throw new ProjectCommonException(
                         ResponseCode.valueSyntaxError.getErrorCode(),
@@ -170,6 +181,9 @@ public class MultiTenantManagementActor extends BaseActor {
                 }
                 catch(JsonProcessingException e)
                 {
+                    ProjectLogger.log(
+                            "MultiTenantManagementActor:createTenantPreferenceDetails():  Data format error.",
+                            LoggerEnum.ERROR.name());
                     throw new ProjectCommonException(
                             ResponseCode.jsonDataFormatError.getErrorCode(),
                             ResponseCode.jsonDataFormatError.getErrorMessage(),
@@ -187,12 +201,16 @@ public class MultiTenantManagementActor extends BaseActor {
             }
 
         }
+        ProjectLogger.log(
+                "MultiTenantManagementActor:createTenantPreferenceDetails():  Tenant Preference Details successfully created. "+ result,
+                LoggerEnum.INFO.name());
         return result;
     }
 
     // To update Tenant Info
     private void updateTenantInfo(Request actorMessage) {
 
+        ProjectLogger.log("Update Tenant Info Api called");
         Map<String, Object> request = actorMessage.getRequest();
         List<String> errMsgs = new ArrayList<>();
         Response returnResponse = new Response();
@@ -206,6 +224,9 @@ public class MultiTenantManagementActor extends BaseActor {
                 (List<Map<String, Object>>) response.get(JsonKey.RESPONSE);
         if(tenantInfoList.isEmpty())
         {
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:updateTenantInfo():  Organisation does not exists.",
+                    LoggerEnum.ERROR.name());
             errMsgs.add("No such Organisation exists in Cassandra Organisation Table");
             returnResponse.put(JsonKey.ORGANISATION_ID,orgId);
             returnResponse.put(JsonKey.ERROR_MSG,errMsgs);
@@ -222,12 +243,16 @@ public class MultiTenantManagementActor extends BaseActor {
             response.put(CaminoJsonKey.TENANT_INFO_ID,tenantInfo.get(JsonKey.ID));
         }
 
+        ProjectLogger.log(
+                "MultiTenantManagementActor:updateTenantInfo():  Tenant Info updated successfully. "+returnResponse,
+                LoggerEnum.INFO.name());
         sender().tell(returnResponse, self());
     }
 
     // To update Tenant Preference Details
     private void updateTenantPreferenceDetails(Request actorMessage) {
 
+        ProjectLogger.log("Update Tenant Preference Details Api called");
         Map<String, Object> request = actorMessage.getRequest();
         String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
         Response response;
@@ -259,13 +284,16 @@ public class MultiTenantManagementActor extends BaseActor {
                 tenantPreferenceDetailsDb.getKeySpace(), tenantPreferenceDetailsDb.getTableName(), newRequest);
         response.put(CaminoJsonKey.TENANT_PREFERENCE_DETAIL_ID,newRequest.get(JsonKey.ID));
 
+        ProjectLogger.log(
+                "MultiTenantManagementActor:updateTenantPreferenceDetails():  Tenant Preference Details updated successfully. "+response,
+                LoggerEnum.INFO.name());
         sender().tell(response, self());
     }
 
     // To get Tenant Info
     private void getTenantInfo(Request actorMessage) {
 
-
+        ProjectLogger.log("Get Tenant Info Api called");
         Map<String, Object> request = actorMessage.getRequest();
         String homeUrl = (String) request.get(JsonKey.HOME_URL);
         Response response = multiTenantDao.readTenantInfoByHomeUrl(homeUrl);
@@ -288,6 +316,9 @@ public class MultiTenantManagementActor extends BaseActor {
                 (List<Map<String, Object>>) response.get(JsonKey.RESPONSE);
 
         if (tenantList.isEmpty()) {
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:getTenantInfo():  No Tenant exists with homeUrl = "+homeUrl,
+                    LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
                     ResponseCode.invalidHomeUrl.getErrorCode(),
                     ResponseCode.invalidHomeUrl.getErrorMessage(),
@@ -301,6 +332,9 @@ public class MultiTenantManagementActor extends BaseActor {
         Map<String,Object> tenantPreData=getTenantPreferenceDetailsByOrgId(orgId);
 
         response.put(CaminoJsonKey.TENANT_PREFERENCE_DETAILS,tenantPreData);
+        ProjectLogger.log(
+                "MultiTenantManagementActor:getTenantInfo():  Tenant Info = "+response,
+                LoggerEnum.INFO.name());
         sender().tell(response, self());
     }
 
@@ -367,13 +401,22 @@ public class MultiTenantManagementActor extends BaseActor {
 
         HashMap<String, Object> orgDetails=null;
         long count = (long) result.get(JsonKey.COUNT);
+        ProjectLogger.log(
+                "MultiTenantManagementActor:validateOrgSearchResult():  Organisations with the homeUrl count = " + count,
+                LoggerEnum.INFO.name());
         if(count == 1){
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:validateOrgSearchResult():  Unique Organisation found with the homeUrl.",
+                    LoggerEnum.INFO.name());
             List<Object> content = (ArrayList<Object>) result.get(JsonKey.CONTENT);
             orgDetails = (HashMap<String, Object>) content.get(0);
             return orgDetails;
         }
 
         else if (count > 1) {
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:validateOrgSearchResult():  Multiple Organisations found with the homeUrl. Selecting RootOrg. ",
+                    LoggerEnum.INFO.name());
             List<Object> content = (ArrayList<Object>) result.get(JsonKey.CONTENT);
             Iterator iterator = content.iterator();
             while(iterator.hasNext()){
@@ -386,6 +429,9 @@ public class MultiTenantManagementActor extends BaseActor {
         }
         else
         {
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:createTenant():  No Organisation found with the homeUrl.",
+                    LoggerEnum.INFO.name());
             throw new ProjectCommonException(
                     ResponseCode.invalidHomeUrl.getErrorCode(),
                     ResponseCode.invalidHomeUrl.getErrorMessage(),
@@ -409,6 +455,9 @@ public class MultiTenantManagementActor extends BaseActor {
         List<Map<String, Object>> tenantList =
                 (List<Map<String, Object>>) tenantInfoResult.get(JsonKey.RESPONSE);
         if (!tenantList.isEmpty()) {
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:validateHomeUrl():  Organisation with url = " + homeUrl+ " already exists in tenant_info table",
+                    LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
                     ResponseCode.homeUrlAlreadyExists.getErrorCode(),
                     ResponseCode.homeUrlAlreadyExists.getErrorMessage(),
@@ -420,6 +469,7 @@ public class MultiTenantManagementActor extends BaseActor {
     // To add new Tenant Preference Details to an existing Tenant
     public void addTenantPreferenceDetails(Request actorMessage) {
 
+        ProjectLogger.log("Add Tenant Preference Details Api called");
         Map<String, Object> request = actorMessage.getRequest();
         String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
         String homeUrl = (String) request.get(JsonKey.HOME_URL);
@@ -429,6 +479,9 @@ public class MultiTenantManagementActor extends BaseActor {
         List<Map<String, Object>> tenantList =
                 (List<Map<String, Object>>) tenantInfoResult.get(JsonKey.RESPONSE);
         if (tenantList.isEmpty()) {
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:addTenantPreferenceDetails():  No Tenant found with the homeUrl = "+ homeUrl,
+                    LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
                     ResponseCode.invalidHomeUrl.getErrorCode(),
                     ResponseCode.invalidHomeUrl.getErrorMessage(),
@@ -440,6 +493,9 @@ public class MultiTenantManagementActor extends BaseActor {
         actorMessage.setRequest(request);
         Response response=createTenantPreferenceDetails(actorMessage);
 
+        ProjectLogger.log(
+                "MultiTenantManagementActor:addTenantPreferenceDetails():  Tenant Preference Details added successfullt = "+ response,
+                LoggerEnum.INFO.name());
         sender().tell(response, self());
     }
 
