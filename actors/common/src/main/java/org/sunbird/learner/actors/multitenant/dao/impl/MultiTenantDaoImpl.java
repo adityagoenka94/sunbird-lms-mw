@@ -63,6 +63,20 @@ public class MultiTenantDaoImpl implements MultiTenantDao{
     }
 
     @Override
+    public Response readTenantInfoByOrgId(String orgid) {
+        Map<String,Object> url=new HashMap<>();
+
+        url.put(JsonKey.ORG_ID,orgid);
+
+        // Get record from tenant_info table of cassandra database for Camino Instance
+
+        Response tenantInfoResult =
+                cassandraOperation.getRecordsByProperties(
+                        tenantInfoDb.getKeySpace(), tenantInfoDb.getTableName(), url);
+        return tenantInfoResult;
+    }
+
+    @Override
     public Response readTenantPreferenceDetailsByOrgId(String orgId) {
 
         Map<String,Object> orgDetail=new HashMap<>();

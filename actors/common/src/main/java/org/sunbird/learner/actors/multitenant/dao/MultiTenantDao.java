@@ -37,6 +37,14 @@ public interface MultiTenantDao {
     Response readTenantInfoByHomeUrl(String homeUrl);
 
     /**
+     * Read Tenant Info for given identifier for Camino Instance.
+     *
+     * @param orgId Organisation Id identifier
+     * @return Tenant Info information
+     */
+
+    Response readTenantInfoByOrgId(String orgId);
+    /**
      * Read Tenant Preference Details for given identifier for Camino Instance.
      *
      * @param orgId Org Id identifier

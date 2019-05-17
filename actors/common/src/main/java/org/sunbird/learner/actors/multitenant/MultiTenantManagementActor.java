@@ -173,7 +173,7 @@ public class MultiTenantManagementActor extends BaseActor {
             for (Map.Entry<String, Object> entry2 : pageDetails.entrySet()) {
                 String keyName=entry2.getKey();
                 newRequest.put(JsonKey.KEY,keyName);
-                Map<String, Object> keyValueDetails=(LinkedHashMap<String,Object>)entry2.getValue();
+                Object keyValueDetails=entry2.getValue();
                 ObjectMapper objectMapper=new ObjectMapper();
                 String keyValue=null;
                 try {
@@ -295,8 +295,17 @@ public class MultiTenantManagementActor extends BaseActor {
 
         ProjectLogger.log("Get Tenant Info Api called");
         Map<String, Object> request = actorMessage.getRequest();
-        String homeUrl = (String) request.get(JsonKey.HOME_URL);
-        Response response = multiTenantDao.readTenantInfoByHomeUrl(homeUrl);
+        String data=null;
+        Response response=null;
+        if(request.get(JsonKey.HOME_URL)!=null) {
+            data = (String) request.get(JsonKey.HOME_URL);
+            response = multiTenantDao.readTenantInfoByHomeUrl(data);
+        }
+        else {
+            data = (String) request.get(JsonKey.ORGANISATION_ID);
+            response = multiTenantDao.readTenantInfoByOrgId(data);
+
+        }
 
         List<Map<String, Object>> tenantList =
                 (List<Map<String, Object>>) response.get(JsonKey.RESPONSE);
@@ -308,8 +317,8 @@ public class MultiTenantManagementActor extends BaseActor {
         // another subOrg url - www.sunbird.com/subOrg2
         // So remove the subOrg part from url and return the details of the rootOrg
 
-        if (tenantList.isEmpty()) {
-            newHomeUrl = homeUrl.substring(0, homeUrl.lastIndexOf('/'));
+        if (tenantList.isEmpty() && request.get(JsonKey.HOME_URL)!=null) {
+            newHomeUrl = data.substring(0, data.lastIndexOf('/'));
             response = multiTenantDao.readTenantInfoByHomeUrl(newHomeUrl);
         }
         tenantList =
@@ -317,11 +326,11 @@ public class MultiTenantManagementActor extends BaseActor {
 
         if (tenantList.isEmpty()) {
             ProjectLogger.log(
-                    "MultiTenantManagementActor:getTenantInfo():  No Tenant exists with homeUrl = "+homeUrl,
+                    "MultiTenantManagementActor:getTenantInfo():  No Tenant exists with this data",
                     LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
-                    ResponseCode.invalidHomeUrl.getErrorCode(),
-                    ResponseCode.invalidHomeUrl.getErrorMessage(),
+                    ResponseCode.invalidData.getErrorCode(),
+                    ResponseCode.invalidData.getErrorMessage(),
                     ResponseCode.RESOURCE_NOT_FOUND.getResponseCode());
         }
 
