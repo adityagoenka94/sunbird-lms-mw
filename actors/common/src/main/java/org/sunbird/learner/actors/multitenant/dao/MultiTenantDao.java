@@ -2,8 +2,6 @@ package org.sunbird.learner.actors.multitenant.dao;
 
 import org.sunbird.common.models.response.Response;
 
-import java.util.List;
-import java.util.Map;
 import org.sunbird.models.multitenant.MultiTenant;
 import org.sunbird.models.multitenant.TenantPreferenceDetails;
 

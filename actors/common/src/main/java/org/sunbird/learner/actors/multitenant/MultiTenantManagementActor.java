@@ -503,7 +503,7 @@ public class MultiTenantManagementActor extends BaseActor {
         Response response=createTenantPreferenceDetails(actorMessage);
 
         ProjectLogger.log(
-                "MultiTenantManagementActor:addTenantPreferenceDetails():  Tenant Preference Details added successfullt = "+ response,
+                "MultiTenantManagementActor:addTenantPreferenceDetails():  Tenant Preference Details added successfully = "+ response,
                 LoggerEnum.INFO.name());
         sender().tell(response, self());
     }

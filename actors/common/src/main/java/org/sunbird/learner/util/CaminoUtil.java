@@ -22,6 +22,7 @@ public class CaminoUtil {
 
         dbInfoMap.put(CaminoJsonKey.TENANT_INFO_DB,getDbInfoObject (KEY_SPACE_NAME, "tenant_info"));
         dbInfoMap.put(CaminoJsonKey.TENANT_PREFERENCE_DETAILS_DB,getDbInfoObject(KEY_SPACE_NAME, "tenant_preference_details"));
+        dbInfoMap.put(CaminoJsonKey.BATCH_LIVE_SESSION_DB,getDbInfoObject(KEY_SPACE_NAME,"batch_live_session"));
 
     }
 
