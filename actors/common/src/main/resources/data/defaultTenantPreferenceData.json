@@ -1,0 +1,120 @@
+{
+  "Home": {
+    "banner": {
+      "required": true,
+      "imgUrl": "http://i65.tinypic.com/2cmvx9j.jpg",
+      "heading": "THE BEST MENTORS, CONTENT FOR YOU",
+      "paragraph": "Learn something new everyday from over 100,000 courses and get inspired by the diversity of online learning."
+    },
+    "benefits": {
+      "required": true,
+      "column-size": 4,
+      "columns": [
+        {
+          "heading": "1000 online courses1",
+          "subheading": "Explore a variety of fresh topics1"
+        },
+        {
+          "heading": "Expert Instructors2",
+          "subheading": "Find the right instructor for you2"
+        },
+        {
+          "heading": "Lifetime Access3",
+          "subheading": "Learn anytime, anywhere3"
+        }
+      ]
+    },
+    "popularCatCode": {
+      "required": true,
+      "code": [
+        "gradeLevel"
+      ]
+    },
+    "exploreCatCode": {
+      "required": true,
+      "code": [
+        "gradeLevel"
+      ]
+    },
+    "cards": {
+      "rating": true,
+      "total-reviews": true,
+      "image": true,
+      "title": true,
+      "subtitle": true,
+      "orgname": true,
+      "tag": true,
+      "card-button": true,
+      "progress-bar": {
+        "required": true,
+        "bar-color": "#fff"
+      }
+    },
+    "theme": {
+      "primaryColor": "#8060e7",
+      "secondaryColor": "green",
+      "accentColor": "black"
+    },
+    "testimonial": {
+      "required": true,
+      "apiUrl": "url to get the testimonial data",
+      "headers": {
+        "required": true,
+        "value": [
+          {
+            "key": "value"
+          },
+          {
+            "key": "value"
+          },
+          {
+            "key": "value"
+          }
+        ]
+      }
+    },
+    "footer": {
+      "Column2": [
+        {
+          "name": "USEFULL LINKS1",
+          "internal": "boolean",
+          "externalUrl": "string"
+        }
+      ],
+      "column3": [
+        {
+          "name": "LINK1",
+          "internal": "boolean",
+          "externalUrl": "string"
+        }
+      ],
+      "column4": {
+        "name": "CONTACT1",
+        "email": "info@niit.com",
+        "phone": [
+          "0124-758252"
+        ],
+        "address": "122001"
+      }
+    },
+    "Social": {
+      "required": true,
+      "instagram": {
+        "required": true,
+        "url": "url to instagram account"
+      },
+      "facebook": {
+        "required": true,
+        "url": "url to facebook account"
+      },
+      "twitter": {
+        "required": false,
+        "url": "url to twitter account"
+      },
+      "linkedin": {
+        "required": true,
+        "url": "url to linkedin account"
+      }
+    }
+  }
+}
