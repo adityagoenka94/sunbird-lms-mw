@@ -16,7 +16,6 @@ import org.sunbird.learner.actors.batchlivesession.dao.impl.BatchLiveSessionDaoI
 import org.sunbird.learner.util.Util;
 import org.sunbird.models.course.batch.LiveSession;
 
-import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -82,64 +81,16 @@ public class LiveSessionManagementActor extends BaseActor {
         Map<String,Object> courseBatchdetail = validateBatchId(batchId);
         String courseId = (String) courseBatchdetail.get(JsonKey.COURSE_ID);
         request.put(JsonKey.COURSE_ID,courseId);
-        String batchStartDate = (String) courseBatchdetail.get(JsonKey.START_DATE);
-        String batchEndDate = (String) courseBatchdetail.get(JsonKey.END_DATE);
 
-        String startTime = (String) request.get(JsonKey.START_TIME);
-        String endTime = (String) request.get(JsonKey.END_TIME);
-
-
-                String newStartTime =null;
-                String newEndTime =null;
-
-                try {
-                    newStartTime = startTime.substring(0, 10);
-                    newEndTime = endTime.substring(0, 10);
-                }
-                catch (IndexOutOfBoundsException e) {
-                    throw new ProjectCommonException(
-                            ResponseCode.dateFormatError.getErrorCode(),
-                            ResponseCode.dateFormatError.getErrorMessage(),
-                            ResponseCode.CLIENT_ERROR.getResponseCode());
-                }
-
-                Date checkStartDate=null;
-                Date checkEndDate=null;
-                Date checkStartDateTime=null;
-                Date checkEndDateTime=null;
-                Date batchStartDate1=null;
-                Date batchEndDate1=null;
-
-        try {
-                    // liveSession date
-                    checkStartDate = simpleDateFormat.parse(newStartTime);
-                    checkEndDate = simpleDateFormat.parse(newEndTime);
-                    checkStartDateTime = simpleDateTimeFormat.parse(startTime);
-                    checkEndDateTime = simpleDateTimeFormat.parse(endTime);
-                    //batch date
-                    batchStartDate1 = simpleDateFormat.parse(batchStartDate);
-                    batchEndDate1 = simpleDateFormat.parse(batchEndDate);
-                }
-                catch(ParseException e) {
-                    throw new ProjectCommonException(
-                            ResponseCode.dateFormatError.getErrorCode(),
-                            ResponseCode.dateFormatError.getErrorMessage(),
-                            ResponseCode.CLIENT_ERROR.getResponseCode());
-                }
-
-                if(checkStartDateTime.after(checkEndDateTime) || checkStartDate.before(batchStartDate1) || checkEndDate.after(batchEndDate1))
-                {
-                    throw new ProjectCommonException(
-                            ResponseCode.invalidDateRange.getErrorCode(),
-                            ResponseCode.invalidDateRange.getErrorMessage(),
-                            ResponseCode.CLIENT_ERROR.getResponseCode());
-                }
+        validateSessionDatesWithBatchDates(courseBatchdetail,request);
 
                 request.put(JsonKey.ID,liveSessionId);
 
                 liveSession = mapper.convertValue(request, LiveSession.class);
                 liveSession.setCreatedBy(requestedBy);
                 liveSession.setCreatedDate(ProjectUtil.getFormattedDate());
+                liveSession.setStatus((int) courseBatchdetail.get(JsonKey.STATUS));
+                liveSession.setLiveSessionId(liveSessionId);
 
                 result = batchLiveSessionDao.createBatchLiveSession(liveSession);
                 result.put(JsonKey.ID,liveSessionId);
@@ -170,7 +121,7 @@ public class LiveSessionManagementActor extends BaseActor {
                 (List<Object>) liveSessionDetails.get(JsonKey.RESPONSE);
         if (liveSessions.isEmpty()) {
             ProjectLogger.log(
-                    "LiveSessionManagementActor:deleteBatchLiveSession(): No LiveSession mapping exists with this ID in batch_live_session table",
+                    "LiveSessionManagementActor:updateBatchLiveSession(): No LiveSession found with specified ID in batch_live_session table",
                     LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
                     ResponseCode.resourceNotFound.getErrorCode(),
@@ -190,6 +141,10 @@ public class LiveSessionManagementActor extends BaseActor {
         if(!StringUtils.isBlank((String)request.get(JsonKey.END_TIME))) {
             liveSession.setLiveSessionUrl((String)request.get(JsonKey.END_TIME));
         }
+
+        Map<String,Object> courseBatchdetail = validateBatchId(liveSession.getBatchId());
+        validateSessionDatesWithBatchDates(courseBatchdetail,liveSessionDetail);
+        liveSession.setStatus((int) courseBatchdetail.get(JsonKey.STATUS));
 
         liveSession.setUpdatedDate(ProjectUtil.getFormattedDate());
 
@@ -213,6 +168,9 @@ public class LiveSessionManagementActor extends BaseActor {
         List<Map<String, Object>> batchLiveSessionList =
                 (List<Map<String, Object>>) batchLiveSessionRead.get(JsonKey.RESPONSE);
         if ((batchLiveSessionList.isEmpty())) {
+            ProjectLogger.log(
+                    "LiveSessionManagementActor:readBatchLiveSessions(): No LiveSession found with specified ID in batch_live_session table",
+                    LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
                     ResponseCode.invalidCourseBatchId.getErrorCode(),
                     ResponseCode.invalidCourseBatchId.getErrorMessage(),
@@ -252,6 +210,9 @@ public class LiveSessionManagementActor extends BaseActor {
         Response response = new Response();
         response.put(JsonKey.RESPONSE, result);
 
+        ProjectLogger.log(
+                "LiveSessionManagementActor:readBatchLiveSessions():  Batch Live Session read successfully. " + response,
+                LoggerEnum.INFO.name());
         sender().tell(response,self());
     }
 
@@ -262,8 +223,11 @@ public class LiveSessionManagementActor extends BaseActor {
         Map<String, Object> request = actorMessage.getRequest();
         String liveSessionId = validateSessionByContentId((String)request.get(JsonKey.CONTENT_ID));
 
-        Response result = batchLiveSessionDao.deleteBatchLiveSessionById(liveSessionId);
-        sender().tell(result, self());
+        Response response = batchLiveSessionDao.deleteBatchLiveSessionById(liveSessionId);
+        ProjectLogger.log(
+                "LiveSessionManagementActor:deleteBatchLiveSession():  Batch Live Session deleted successfully. " + response,
+                LoggerEnum.INFO.name());
+        sender().tell(response, self());
     }
 
     private Map<String,Object> validateBatchId(String batchId) {
@@ -283,6 +247,9 @@ public class LiveSessionManagementActor extends BaseActor {
         Map<String,Object> courseBatch = courseBatchList.get(0);
 
         if (ProjectUtil.ProgressStatus.COMPLETED.getValue() == (int)courseBatch.get(JsonKey.STATUS)) {
+            ProjectLogger.log(
+                    "LiveSessionManagementActor:validateBatchId(): The Batch has already completed.",
+                    LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
                     ResponseCode.courseBatchEndDateError.getErrorCode(),
                     ResponseCode.courseBatchEndDateError.getErrorMessage(),
@@ -327,6 +294,72 @@ public class LiveSessionManagementActor extends BaseActor {
 
         String liveSessionId = (String)((liveSessionList.get(0)).get(JsonKey.ID));
         return  liveSessionId;
+    }
+
+    private void validateSessionDatesWithBatchDates(Map<String,Object> courseBatchdetail, Map<String, Object> request) {
+
+        String batchStartDate = (String) courseBatchdetail.get(JsonKey.START_DATE);
+        String batchEndDate = (String) courseBatchdetail.get(JsonKey.END_DATE);
+
+        String startTime = (String) request.get(JsonKey.START_TIME);
+        String endTime = (String) request.get(JsonKey.END_TIME);
+
+
+        String newStartTime =null;
+        String newEndTime =null;
+
+        try {
+            newStartTime = startTime.substring(0, 10);
+            newEndTime = endTime.substring(0, 10);
+        }
+        catch (IndexOutOfBoundsException e) {
+            ProjectLogger.log(
+                    "LiveSessionManagementActor:createBatchLiveSessions(): The format of the start date or end date is not correct. Correct format (yyyy-MM-dd HH:mm:ss:SSSZ)",
+                    LoggerEnum.ERROR.name());
+            throw new ProjectCommonException(
+                    ResponseCode.datePatternError.getErrorCode(),
+                    ResponseCode.datePatternError.getErrorMessage(),
+                    ResponseCode.CLIENT_ERROR.getResponseCode());
+        }
+
+        Date checkStartDate=null;
+        Date checkEndDate=null;
+        Date checkStartDateTime=null;
+        Date checkEndDateTime=null;
+        Date batchStartDate1=null;
+        Date batchEndDate1=null;
+
+        try {
+            // liveSession date
+            checkStartDate = simpleDateFormat.parse(newStartTime);
+            checkEndDate = simpleDateFormat.parse(newEndTime);
+            checkStartDateTime = simpleDateTimeFormat.parse(startTime);
+            checkEndDateTime = simpleDateTimeFormat.parse(endTime);
+            //batch date
+            batchStartDate1 = simpleDateFormat.parse(batchStartDate);
+            batchEndDate1 = simpleDateFormat.parse(batchEndDate);
+        }
+        catch(ParseException e) {
+            ProjectLogger.log(
+                    "LiveSessionManagementActor:createBatchLiveSessions(): The format of the start date or end date is not correct. Correct format (yyyy-MM-dd HH:mm:ss:SSSZ)",
+                    LoggerEnum.ERROR.name());
+            throw new ProjectCommonException(
+                    ResponseCode.datePatternError.getErrorCode(),
+                    ResponseCode.datePatternError.getErrorMessage(),
+                    ResponseCode.CLIENT_ERROR.getResponseCode());
+        }
+
+        if(checkStartDateTime.after(checkEndDateTime) || checkStartDate.before(batchStartDate1) || checkEndDate.after(batchEndDate1))
+        {
+            ProjectLogger.log(
+                    "LiveSessionManagementActor:createBatchLiveSessions(): The start date or end date is not within the course batch period.",
+                    LoggerEnum.ERROR.name());
+            throw new ProjectCommonException(
+                    ResponseCode.invalidDateRange.getErrorCode(),
+                    ResponseCode.invalidDateRange.getErrorMessage(),
+                    ResponseCode.CLIENT_ERROR.getResponseCode());
+        }
+
     }
 
 

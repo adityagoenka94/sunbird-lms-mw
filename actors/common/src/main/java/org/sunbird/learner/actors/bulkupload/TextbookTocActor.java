@@ -78,7 +78,7 @@ public class TextbookTocActor extends BaseBulkUploadActor {
             throwClientErrorException(invalidTextbook, invalidTextbook.getErrorMessage());
         }
         ProjectLogger.log("Reading Hierarchy for TextBook | Id: ", textbookId);
-        Map<String, Object> readHierarchyResponse = TextBookTocUtil.readHierarchy(textbookId);
+        Map<String, Object> readHierarchyResponse = (TextBookTocUtil.readHierarchy(textbookId)).getResult();
         Response response = new Response();
         String responseCode = (String) readHierarchyResponse.get(RESPONSE_CODE);
         if (StringUtils.equals(OK.name(), responseCode)) {

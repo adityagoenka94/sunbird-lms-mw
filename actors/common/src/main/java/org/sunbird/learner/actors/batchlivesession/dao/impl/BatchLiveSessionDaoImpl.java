@@ -67,12 +67,10 @@ public class BatchLiveSessionDaoImpl implements BatchLiveSessionDao {
     }
 
     @Override
-    public Response deleteBatchLiveSessionById(String id)
+    public Response deleteBatchLiveSessionById(String liveSessionId)
     {
-        Response response =
-                cassandraOperation.deleteRecord(
-                        batchLiveSessionDb.getKeySpace(), batchLiveSessionDb.getTableName(),id);
-        return response;
+        return cassandraOperation.deleteRecord(
+                        batchLiveSessionDb.getKeySpace(), batchLiveSessionDb.getTableName(),liveSessionId);
     }
 
     @Override

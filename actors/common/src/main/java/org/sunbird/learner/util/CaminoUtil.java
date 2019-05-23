@@ -20,8 +20,7 @@ public class CaminoUtil {
     }
     private static void initializeDBProperty() {
 
-        dbInfoMap.put(CaminoJsonKey.TENANT_INFO_DB,getDbInfoObject (KEY_SPACE_NAME, "tenant_info"));
-        dbInfoMap.put(CaminoJsonKey.TENANT_PREFERENCE_DETAILS_DB,getDbInfoObject(KEY_SPACE_NAME, "tenant_preference_details"));
+        dbInfoMap.put(CaminoJsonKey.MULTI_TENANT_INFO_DB,getDbInfoObject (KEY_SPACE_NAME, "multi_tenant_info"));
         dbInfoMap.put(CaminoJsonKey.BATCH_LIVE_SESSION_DB,getDbInfoObject(KEY_SPACE_NAME,"batch_live_session"));
 
     }
