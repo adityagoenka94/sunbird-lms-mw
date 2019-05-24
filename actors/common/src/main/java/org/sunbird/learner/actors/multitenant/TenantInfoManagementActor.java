@@ -20,10 +20,10 @@ import org.sunbird.dto.SearchDTO;
 import org.sunbird.helper.ServiceFactory;
 import org.sunbird.learner.util.CaminoUtil;
 import org.sunbird.learner.util.Util;
-import org.sunbird.learner.actors.multitenant.dao.MultiTenantDao;
+import org.sunbird.learner.actors.multitenant.dao.TenantInfoDao;
 import org.sunbird.common.models.util.ProjectUtil.EsIndex;
-import org.sunbird.learner.actors.multitenant.dao.impl.MultiTenantDaoImpl;
-import org.sunbird.models.multitenant.MultiTenant;
+import org.sunbird.learner.actors.multitenant.dao.impl.TenantInfoDaoImpl;
+import org.sunbird.models.multitenant.TenantPreference;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,14 +40,14 @@ import java.util.*;
         asyncTasks = {}
 )
 
-public class MultiTenantManagementActor extends BaseActor {
+public class TenantInfoManagementActor extends BaseActor {
 
     // private MultiTenantService multiTenantService = new MultiTenantService();
     ObjectMapper mapper = new ObjectMapper();
     private CassandraOperation cassandraOperation = ServiceFactory.getInstance();
-    private Util.DbInfo tenantInfoDb = CaminoUtil.dbInfoMap.get(CaminoJsonKey.MULTI_TENANT_INFO_DB);
+    private Util.DbInfo tenantInfoDb = CaminoUtil.dbInfoMap.get(CaminoJsonKey.TENANT_INFO_DB);
     private Util.DbInfo orgDb = Util.dbInfoMap.get(JsonKey.ORG_DB);
-    private MultiTenantDao multiTenantDao = new MultiTenantDaoImpl();
+    private TenantInfoDao tenantInfoDao = new TenantInfoDaoImpl();
 
     @Override
     public void onReceive(Request request) throws Throwable {
@@ -85,7 +85,7 @@ public class MultiTenantManagementActor extends BaseActor {
         Map<String, Object> tenantPreferenceData=null;
         String jsonString;
 
-        MultiTenant multiTenant;
+        TenantPreference tenantPreference;
         String homeUrl = (String) request.get(JsonKey.HOME_URL);
 
         validateHomeUrl(homeUrl);
@@ -106,13 +106,13 @@ public class MultiTenantManagementActor extends BaseActor {
 
         Map<String, Object> orgData = validateOrgSearchResult(result);
 
-        multiTenant = mapper.convertValue(orgData, MultiTenant.class);
+        tenantPreference = mapper.convertValue(orgData, TenantPreference.class);
 
         // Case if TenantPreferenceDetails is Empty, then apply default settings
         if (StringUtils.isBlank(request.get(CaminoJsonKey.PREFERENCE_DETAILS).toString())) {
             try {
                 ProjectLogger.log(
-                        "MultiTenantManagementActor:createTenantPreferenceDetails():  Applying default tenant preference settings.",
+                        "MultiTenantManagementActor:createMultiTenantInfo():  Applying default tenant preference settings.",
                         LoggerEnum.INFO.name());
                 InputStream file = this.getClass().getResourceAsStream( "/data/defaultTenantPreferenceData.json" );
                 byte[] defaultData = new byte[file.available()];
@@ -124,7 +124,7 @@ public class MultiTenantManagementActor extends BaseActor {
                 file.close();
             } catch (IOException e) {
                 ProjectLogger.log(
-                        "MultiTenantManagementActor:createTenantPreferenceDetails():  Error while applying default tenant preference settings.",
+                        "MultiTenantManagementActor:createMultiTenantInfo():  Error while applying default tenant preference settings.",
                         LoggerEnum.ERROR.name());
                 e.printStackTrace();
                 throw new ProjectCommonException(
@@ -138,26 +138,26 @@ public class MultiTenantManagementActor extends BaseActor {
             tenantPreferenceData=(LinkedHashMap<String, Object>) request.get(CaminoJsonKey.PREFERENCE_DETAILS);
         }
 
-        storeTenantPreferenceData(tenantPreferenceData, multiTenant);
+        storeTenantPreferenceData(tenantPreferenceData, tenantPreference);
 
         if (!StringUtils.isBlank((String)request.get(JsonKey.FRAMEWORK))) {
-            multiTenant.setFramework((String)request.get(JsonKey.FRAMEWORK));
+            tenantPreference.setFramework((String)request.get(JsonKey.FRAMEWORK));
         }
         else {
-            multiTenant.setFramework("NCF");
+            tenantPreference.setFramework("NCF");
         }
 
 
-        multiTenant.setId(tenantInfoId);
-        multiTenant.setOrgId((String)orgData.get(JsonKey.ID));
-        multiTenant.setMultiTenantId(tenantInfoId);
-        multiTenant.setCreatedBy(requestedBy);
-        multiTenant.setCreatedDate(ProjectUtil.getFormattedDate());
+        tenantPreference.setId(tenantInfoId);
+        tenantPreference.setOrgId((String)orgData.get(JsonKey.ID));
+        tenantPreference.setTenantInfoId(tenantInfoId);
+        tenantPreference.setCreatedBy(requestedBy);
+        tenantPreference.setCreatedDate(ProjectUtil.getFormattedDate());
 
-            Response response = multiTenantDao.createMultiTenantInfo(multiTenant);
-        response.put(CaminoJsonKey.MULTI_TENANT_ID, tenantInfoId);
+            Response response = tenantInfoDao.createMultiTenantInfo(tenantPreference);
+        response.put(CaminoJsonKey.TENANT_INFO_ID, tenantInfoId);
         ProjectLogger.log(
-                "MultiTenantManagementActor:createTenant():  Tenant info created successfully "+response,
+                "MultiTenantManagementActor:createMultiTenantInfo():  Tenant info created successfully "+response,
                 LoggerEnum.INFO.name());
 
         sender().tell(response, self());
@@ -172,31 +172,12 @@ public class MultiTenantManagementActor extends BaseActor {
         String requestedBy = (String) actorMessage.getContext().get(JsonKey.REQUESTED_BY);
 
         String data=null;
-        Response result=null;
-        MultiTenant multiTenant = null;
-        if(request.get(CaminoJsonKey.MULTI_TENANT_ID)!=null) {
-            data = (String) request.get(CaminoJsonKey.MULTI_TENANT_ID);
-            multiTenant = multiTenantDao.readMultiTenantInfoById(data);
-        }
-        else {
-            data = (String) request.get(JsonKey.HOME_URL);
-            result = multiTenantDao.readMultiTenantInfoByProperty(JsonKey.HOME_URL, data);
-            List<Map<String, Object>> tenantList =
-                    (List<Map<String, Object>>) result.get(JsonKey.RESPONSE);
-            if (tenantList.isEmpty()) {
-                ProjectLogger.log(
-                        "MultiTenantManagementActor:updateMultiTenantInfo():  No Tenant exists with this Home Url",
-                        LoggerEnum.ERROR.name());
-                throw new ProjectCommonException(
-                        ResponseCode.invalidHomeUrl.getErrorCode(),
-                        ResponseCode.invalidHomeUrl.getErrorMessage(),
-                        ResponseCode.RESOURCE_NOT_FOUND.getResponseCode());
-            }
-            multiTenant = mapper.convertValue(tenantList.get(0),MultiTenant.class);
-        }
+        TenantPreference tenantPreference = null;
+            data = (String) request.get(CaminoJsonKey.TENANT_INFO_ID);
+        tenantPreference = tenantInfoDao.readMultiTenantInfoById(data);
 
-        String orgId=multiTenant.getOrgId();
-        MultiTenant newMultiTenant = null;
+        String orgId=tenantPreference.getOrgId();
+        TenantPreference newTenantPreference = null;
         Response response =
                 cassandraOperation.getRecordById(orgDb.getKeySpace(), orgDb.getTableName(),orgId);
         List<Map<String, Object>> tenantInfoList =
@@ -211,29 +192,36 @@ public class MultiTenantManagementActor extends BaseActor {
                     ResponseCode.invalidRootOrganisationId.getErrorMessage()+" : orgId = "+orgId,
                     ResponseCode.RESOURCE_NOT_FOUND.getResponseCode());
         }
-        newMultiTenant = mapper.convertValue(tenantInfoList.get(0), MultiTenant.class);
+        newTenantPreference = mapper.convertValue(tenantInfoList.get(0), TenantPreference.class);
 
-        if(!StringUtils.isBlank((String)request.get(JsonKey.FRAMEWORK)))
-        {
-            newMultiTenant.setFramework((String)request.get(JsonKey.FRAMEWORK));
+        if(!StringUtils.isBlank((String)request.get(JsonKey.FRAMEWORK))) {
+            newTenantPreference.setFramework((String)request.get(JsonKey.FRAMEWORK));
+        }
+        else {
+            newTenantPreference.setFramework(tenantPreference.getFramework());
         }
 
         if( request.get(CaminoJsonKey.PREFERENCE_DETAILS)!=null && StringUtils.isBlank(request.get(CaminoJsonKey.PREFERENCE_DETAILS).toString()))
         {
             Map<String, Object> tenantPreferenceData=(LinkedHashMap<String, Object>) request.get(CaminoJsonKey.PREFERENCE_DETAILS);
-            storeTenantPreferenceData(tenantPreferenceData, newMultiTenant);
+            storeTenantPreferenceData(tenantPreferenceData, newTenantPreference);
+        }
+        else
+        {
+            Map<String, Object> tenantPreferenceData=convertTenantPreferenceDetails(tenantPreference.getPreferenceDetails());
+            storeTenantPreferenceData(tenantPreferenceData, newTenantPreference);
         }
 
-        newMultiTenant.setId(multiTenant.getId());
-        newMultiTenant.setOrgId(multiTenant.getOrgId());
-        newMultiTenant.setMultiTenantId(multiTenant.getMultiTenantId());
-        newMultiTenant.setCreatedBy(multiTenant.getCreatedBy());
-        newMultiTenant.setCreatedDate(multiTenant.getCreatedDate());
-        newMultiTenant.setUpdatedBy(requestedBy);
-        newMultiTenant.setUpdatedDate(ProjectUtil.getFormattedDate());
+        newTenantPreference.setId(tenantPreference.getId());
+        newTenantPreference.setOrgId(tenantPreference.getOrgId());
+        newTenantPreference.setTenantInfoId(tenantPreference.getTenantInfoId());
+        newTenantPreference.setCreatedBy(tenantPreference.getCreatedBy());
+        newTenantPreference.setCreatedDate(tenantPreference.getCreatedDate());
+        newTenantPreference.setUpdatedBy(requestedBy);
+        newTenantPreference.setUpdatedDate(ProjectUtil.getFormattedDate());
 
-            response = multiTenantDao.updateMultiTenantInfo(newMultiTenant);
-            response.put(CaminoJsonKey.MULTI_TENANT_ID,newMultiTenant.getMultiTenantId());
+            response = tenantInfoDao.updateMultiTenantInfo(newTenantPreference);
+            response.put(CaminoJsonKey.TENANT_INFO_ID,newTenantPreference.getTenantInfoId());
 
         ProjectLogger.log(
                 "MultiTenantManagementActor:updateTenantInfo():  Tenant Info updated successfully. ",
@@ -251,11 +239,11 @@ public class MultiTenantManagementActor extends BaseActor {
         Response result=null;
         if(request.get(JsonKey.HOME_URL)!=null) {
             data = (String) request.get(JsonKey.HOME_URL);
-            result = multiTenantDao.readMultiTenantInfoByProperty(JsonKey.HOME_URL, data);
+            result = tenantInfoDao.readMultiTenantInfoByProperty(JsonKey.HOME_URL, data);
         }
         else {
             data = (String) request.get(JsonKey.ORGANISATION_ID);
-            result = multiTenantDao.readMultiTenantInfoByProperty(JsonKey.ORG_ID, data);
+            result = tenantInfoDao.readMultiTenantInfoByProperty(JsonKey.ORG_ID, data);
 
         }
 
@@ -273,8 +261,11 @@ public class MultiTenantManagementActor extends BaseActor {
             // So remove the subOrg part from url and return the details of the rootOrg
 
             if (request.get(JsonKey.HOME_URL)!=null) {
-                newHomeUrl = data.substring(0, data.lastIndexOf('/'));
-                result = multiTenantDao.readMultiTenantInfoByProperty(JsonKey.HOME_URL, newHomeUrl);
+                int index =  data.lastIndexOf('/');
+                if(index>0) {
+                    newHomeUrl = data.substring(0, index);
+                    result = tenantInfoDao.readMultiTenantInfoByProperty(JsonKey.HOME_URL, newHomeUrl);
+                }
             }
 
             // if Tenant Info is not found, get the rootOrgId of that organisation
@@ -296,7 +287,7 @@ public class MultiTenantManagementActor extends BaseActor {
                 }
 
                 String rootOrgId = (String) orgDetails.get(JsonKey.ROOT_ORG_ID);
-                result = multiTenantDao.readMultiTenantInfoByProperty(JsonKey.ORG_ID, rootOrgId);
+                result = tenantInfoDao.readMultiTenantInfoByProperty(JsonKey.ORG_ID, rootOrgId);
             }
 
             tenantList =
@@ -313,22 +304,8 @@ public class MultiTenantManagementActor extends BaseActor {
                     ResponseCode.RESOURCE_NOT_FOUND.getResponseCode());
         }
         String preferenceDetails = (String)(tenantList.get(0).get(CaminoJsonKey.PREFERENCE_DETAILS));
-        JsonNode jsonNode = null;
 
-        try {
-            jsonNode = mapper.readTree(preferenceDetails);
-        }
-         catch (IOException e) {
-            ProjectLogger.log(
-                    "MultiTenantManagementActor:getMultiTenantInfo():  Error while applying default tenant preference settings.",
-                    LoggerEnum.ERROR.name());
-            e.printStackTrace();
-            throw new ProjectCommonException(
-                    ResponseCode.valueSyntaxError.getErrorCode(),
-                    ResponseCode.valueSyntaxError.getErrorMessage(),
-                    ResponseCode.CLIENT_ERROR.getResponseCode());
-        }
-        Map<String,Object> map = mapper.convertValue(jsonNode,Map.class);
+        Map<String,Object> map = convertTenantPreferenceDetails(preferenceDetails);
 
         tenantList.get(0).put(CaminoJsonKey.PREFERENCE_DETAILS,map);
         ProjectLogger.log(
@@ -342,9 +319,9 @@ public class MultiTenantManagementActor extends BaseActor {
 
         ProjectLogger.log("Delete Multi Tenant Info Api Called");
         Map<String, Object> request = actorMessage.getRequest();
-        String multiTenantId = (String)request.get(CaminoJsonKey.MULTI_TENANT_ID);
+        String tenantId = (String)request.get(CaminoJsonKey.TENANT_INFO_ID);
 
-        if (StringUtils.isBlank(multiTenantId)) {
+        if (StringUtils.isBlank(tenantId)) {
             ProjectLogger.log(
                     "MultiTenantManagementActor:deleteMultiTenantInfo():  Please provide a valid data.",
                     LoggerEnum.ERROR.name());
@@ -354,7 +331,7 @@ public class MultiTenantManagementActor extends BaseActor {
                     ResponseCode.CLIENT_ERROR.getResponseCode());
         }
 
-        Response response = multiTenantDao.deleteMultiTenantInfo(multiTenantId);
+        Response response = tenantInfoDao.deleteMultiTenantInfo(tenantId);
         sender().tell(response, self());
     }
 
@@ -436,7 +413,7 @@ public class MultiTenantManagementActor extends BaseActor {
 
         // Get Tenant Info using homeUrl
         Response tenantInfoResult =
-                multiTenantDao.readMultiTenantInfoByProperty(JsonKey.HOME_URL, homeUrl);
+                tenantInfoDao.readMultiTenantInfoByProperty(JsonKey.HOME_URL, homeUrl);
         List<Map<String, Object>> tenantList =
                 (List<Map<String, Object>>) tenantInfoResult.get(JsonKey.RESPONSE);
         if (!tenantList.isEmpty()) {
@@ -450,7 +427,7 @@ public class MultiTenantManagementActor extends BaseActor {
         }
     }
 
-    private void storeTenantPreferenceData(Map<String,Object> tenantPreferenceData,MultiTenant multiTenant) {
+    private void storeTenantPreferenceData(Map<String,Object> tenantPreferenceData,TenantPreference multiTenant) {
 
         JsonNode tenantDetails = mapper.convertValue(tenantPreferenceData,JsonNode.class);
         try {
@@ -459,13 +436,34 @@ public class MultiTenantManagementActor extends BaseActor {
         catch(JsonProcessingException e)
         {
             ProjectLogger.log(
-                    "MultiTenantManagementActor:createTenantPreferenceDetails():  Data format error.",
+                    "MultiTenantManagementActor:storeTenantPreferenceData():  Data format error.",
                     LoggerEnum.ERROR.name());
             throw new ProjectCommonException(
                     ResponseCode.jsonDataFormatError.getErrorCode(),
                     ResponseCode.jsonDataFormatError.getErrorMessage(),
                     ResponseCode.CLIENT_ERROR.getResponseCode());
         }
+    }
+
+    private Map<String,Object> convertTenantPreferenceDetails(String preferenceDetails) {
+
+        JsonNode jsonNode = null;
+
+        try {
+            jsonNode = mapper.readTree(preferenceDetails);
+        }
+        catch (IOException e) {
+            ProjectLogger.log(
+                    "MultiTenantManagementActor:convertTenantPreferenceDetails():  Error while evaluating tenant preference details.",
+                    LoggerEnum.ERROR.name());
+            e.printStackTrace();
+            throw new ProjectCommonException(
+                    ResponseCode.valueSyntaxError.getErrorCode(),
+                    ResponseCode.valueSyntaxError.getErrorMessage(),
+                    ResponseCode.CLIENT_ERROR.getResponseCode());
+        }
+        Map<String,Object> map = mapper.convertValue(jsonNode,Map.class);
+        return map;
     }
 
     }

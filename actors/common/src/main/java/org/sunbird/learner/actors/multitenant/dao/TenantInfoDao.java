@@ -1,13 +1,9 @@
 package org.sunbird.learner.actors.multitenant.dao;
 
 import org.sunbird.common.models.response.Response;
+import org.sunbird.models.multitenant.TenantPreference;
 
-import org.sunbird.models.multitenant.MultiTenant;
-
-import java.util.List;
-import java.util.Map;
-
-public interface MultiTenantDao {
+public interface TenantInfoDao {
 
     /**
      * Create tenant info for Camino Instance.
@@ -16,7 +12,7 @@ public interface MultiTenantDao {
      * @return Response containing identifier of created Tenant info
      */
 
-    Response createMultiTenantInfo(MultiTenant multiTenant);
+    Response createMultiTenantInfo(TenantPreference multiTenant);
 
     /**
      * Read Tenant Info for given identifier for Camino Instance.
@@ -35,7 +31,7 @@ public interface MultiTenantDao {
      * @return Tenant Info information
      */
 
-    MultiTenant readMultiTenantInfoById(String id);
+    TenantPreference readMultiTenantInfoById(String id);
 
     /**
      * Update Tenant Info for given identifier for Camino Instance.
@@ -44,16 +40,16 @@ public interface MultiTenantDao {
      * @return Response containing identifier of updated Tenant info
      */
 
-    Response updateMultiTenantInfo(MultiTenant multiTenant);
+    Response updateMultiTenantInfo(TenantPreference multiTenant);
 
     /**
      * Delete Tenant Info for given identifier for Camino Instance.
      *
-     * @param multiTenantId Multi Tenant id to be deleted
+     * @param tenantId Multi Tenant id to be deleted
      * @return Response containing Success or Fail Report
      */
 
-    Response deleteMultiTenantInfo(String multiTenantId);
+    Response deleteMultiTenantInfo(String tenantId);
 
 
 }
