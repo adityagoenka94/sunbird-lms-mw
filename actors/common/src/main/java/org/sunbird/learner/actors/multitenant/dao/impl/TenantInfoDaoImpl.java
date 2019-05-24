@@ -8,25 +8,24 @@ import org.sunbird.common.models.util.CaminoJsonKey;
 import org.sunbird.common.models.util.JsonKey;
 import org.sunbird.common.responsecode.ResponseCode;
 import org.sunbird.helper.ServiceFactory;
-import org.sunbird.learner.actors.multitenant.dao.MultiTenantDao;
+import org.sunbird.learner.actors.multitenant.dao.TenantInfoDao;
 import org.sunbird.learner.util.CaminoUtil;
 import org.sunbird.learner.util.Util;
-import org.sunbird.models.multitenant.MultiTenant;
+import org.sunbird.models.multitenant.TenantPreference;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MultiTenantDaoImpl implements MultiTenantDao{
+public class TenantInfoDaoImpl implements TenantInfoDao{
     private CassandraOperation cassandraOperation = ServiceFactory.getInstance();
-   private Util.DbInfo tenantInfoDb = CaminoUtil.dbInfoMap.get(CaminoJsonKey.MULTI_TENANT_INFO_DB);
+   private Util.DbInfo tenantInfoDb = CaminoUtil.dbInfoMap.get(CaminoJsonKey.TENANT_INFO_DB);
 
 
     private ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public Response createMultiTenantInfo(MultiTenant multiTenant) {
-        Map<String, Object> map = mapper.convertValue(multiTenant, Map.class);
+    public Response createMultiTenantInfo(TenantPreference tenantPreference) {
+        Map<String, Object> map = mapper.convertValue(tenantPreference, Map.class);
 
         // Insert record in tenant_info table of cassandra database for Camino Instance
         return cassandraOperation.insertRecord(
@@ -48,7 +47,7 @@ public class MultiTenantDaoImpl implements MultiTenantDao{
 
 
     @Override
-    public MultiTenant readMultiTenantInfoById(String id) {
+    public TenantPreference readMultiTenantInfoById(String id) {
 
         Response tenantPreferenceDetail =
                 cassandraOperation.getRecordById(
@@ -61,14 +60,14 @@ public class MultiTenantDaoImpl implements MultiTenantDao{
                     ResponseCode.invalidTenantInfoId.getErrorMessage(),
                     ResponseCode.RESOURCE_NOT_FOUND.getResponseCode());
         } else {
-            return mapper.convertValue(tenantPreference.get(0), MultiTenant.class);
+            return mapper.convertValue(tenantPreference.get(0), TenantPreference.class);
         }
     }
 
     @Override
-    public Response updateMultiTenantInfo(MultiTenant multiTenant) {
+    public Response updateMultiTenantInfo(TenantPreference tenantPreference) {
 
-        Map<String, Object> map = mapper.convertValue(multiTenant, Map.class);
+        Map<String, Object> map = mapper.convertValue(tenantPreference, Map.class);
 
         // update record in multi_tenant_info table of cassandra database for Camino Instance
         return cassandraOperation.updateRecord(
@@ -77,10 +76,10 @@ public class MultiTenantDaoImpl implements MultiTenantDao{
 
 
     @Override
-    public Response deleteMultiTenantInfo(String multiTenantId) {
+    public Response deleteMultiTenantInfo(String tenantId) {
 
         return cassandraOperation.deleteRecord(
-                tenantInfoDb.getKeySpace(), tenantInfoDb.getTableName(),multiTenantId);
+                tenantInfoDb.getKeySpace(), tenantInfoDb.getTableName(),tenantId);
     }
 
 
